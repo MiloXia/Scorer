@@ -49,19 +49,19 @@ class AsynHTTPServer(tenThreadGroup:AsynchronousChannelGroup, port:Int) {
 	
 	private def asynRead(socket:AsynchronousSocketChannel, hanlder:(HTTPRequest, HTTPResponse) => Unit) { //callback
     	if (socket.isOpen()) {  
-    		val readBuffer:ByteBuffer = ByteBuffer.allocate(100)
+    		val readBuffer:ByteBuffer = ByteBuffer.allocate(1024)//太小会造成截断
             if (!readBuffer.hasRemaining()) {  
                 //扩容
             }
             socket.read(readBuffer, null, new CompletionHandler[Integer, Any]() {
 				@Override
 				def completed(result:Integer, attachment:Any) {
-				    if(result < 0) {
+				    /*if(result < 0) {
 				        socket.close()
 				        return
-				    }
+				    }*/
 					if(result > 0) {
-						println("Message received from client: " + new String(readBuffer.array()))
+						println("Message received from client: \n" + new String(readBuffer.array()))
 					    hanlder(new HTTPRequest(readBuffer), new HTTPResponse(socket)) //核心
 					} else {
 						asynRead(socket, hanlder)// 等待socket下一次可读 除非socket关闭了
@@ -71,6 +71,8 @@ class AsynHTTPServer(tenThreadGroup:AsynchronousChannelGroup, port:Int) {
 				@Override
 				def failed(exc:Throwable, attachment:Any) {
 					exc.printStackTrace();
+					println("error")
+					server.close()
 				}
             	
             });  
@@ -86,9 +88,10 @@ object AsynHTTPServer {
     def main(args: Array[String]) {
         val http = new AsynHTTPServer(AsynchronousChannelGroup.withFixedThreadPool(10, Executors.defaultThreadFactory()), 8888);
         println("server sart...")
-        http.createServer((res:HTTPRequest, req:HTTPResponse) => {
+        http.createServer((req:HTTPRequest, res:HTTPResponse) => {
             println("welcome")
-            req.end()
+            res.write("welcome");
+            //res.end()
         })
     }
 }
