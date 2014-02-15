@@ -8,8 +8,13 @@ import java.nio.ByteBuffer
 import java.util.concurrent.Future
 import java.net.InetSocketAddress
 import java.util.concurrent.Executors
+import java.util.concurrent.BlockingQueue
+import java.util.concurrent.LinkedBlockingQueue
 
 class AsynHTTPServer(tenThreadGroup:AsynchronousChannelGroup, port:Int) {
+    //需要为每个链接关联一个写入队,减轻group的压力
+    private val queue:BlockingQueue[ByteBuffer] = new LinkedBlockingQueue(10);
+    
     private val server:AsynchronousServerSocketChannel = AsynchronousServerSocketChannel.open(tenThreadGroup).bind(new InetSocketAddress("localhost",port), 100)
     //private var f:Future[Integer] = null
     def createServer(hanlder:(HTTPRequest, HTTPResponse) => Unit) = {
@@ -25,7 +30,6 @@ class AsynHTTPServer(tenThreadGroup:AsynchronousChannelGroup, port:Int) {
 				def completed(worker:AsynchronousSocketChannel, attachment:Any) {
 			        try {
 			            // read a message from the client, timeout after 10 seconds
-			        	//asynRead2(worker);
 			        	asynRead(worker, hanlder);
 			        } catch {
 			            case e:Exception => e.printStackTrace()
@@ -89,9 +93,9 @@ object AsynHTTPServer {
         val http = new AsynHTTPServer(AsynchronousChannelGroup.withFixedThreadPool(10, Executors.defaultThreadFactory()), 8888);
         println("server sart...")
         http.createServer((req:HTTPRequest, res:HTTPResponse) => {
-            println("welcome")
+            res.setHeader("Content-Type", "text/plain")
             res.write("welcome");
-            //res.end()
+            res.end()
         })
     }
 }
