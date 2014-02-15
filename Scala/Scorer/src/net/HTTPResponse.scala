@@ -43,12 +43,10 @@ class HTTPResponse(socket:AsynchronousSocketChannel) {
 	}
     
     private def asynWrite(byteBuffer:ByteBuffer) {
-        //byteBuffer.flip()
-        //byteBuffer.limit(byteBuffer.position())
         println( new String(byteBuffer.array(), "utf-8"))
-        //println("limt "+byteBuffer.limit)
-	    if(this.socket.isOpen) {//异步写入不支持发散聚集
-	        /*this.socket.write(byteBuffer, null, new CompletionHandler[Integer, Any]() {
+        if(this.socket.isOpen) {//异步写入不支持发散聚集
+            byteBuffer.flip()
+	        this.socket.write(byteBuffer, null, new CompletionHandler[Integer, Any]() {
 				@Override
 				def completed(result:Integer, attachment:Any) {
 				    //queue.synchronized {
@@ -59,7 +57,7 @@ class HTTPResponse(socket:AsynchronousSocketChannel) {
 				            } catch {
 				                case e:Exception => e.printStackTrace()
 				            }*/
-				            socket.close();
+				            socket.close();//TODO keep-alive
 				        } else {
 				            asynWrite(byteBuffer)
 				        }
@@ -71,31 +69,18 @@ class HTTPResponse(socket:AsynchronousSocketChannel) {
 					exc.printStackTrace();
 					socket.close(); //server.close();
 				}	
-            })*/
-	       /*val resultBuffer = CharBuffer.allocate(1024)
-	       staticHdr.rewind()//类似filp limt不变 对warp的数组比较合适 在被写入别的ByteBuffer前先要filp
-	       resultBuffer.clear()
-	       resultBuffer.put(utf8.decode(staticHdr))
-	       resultBuffer.put ("Content-Length: " + 105)
-	       resultBuffer.put (LINE_SEP)
-	       resultBuffer.put ("Content-Type: ")
-	       resultBuffer.put (/*contentType*/"text/plain")
-	       resultBuffer.put (LINE_SEP)
-	       resultBuffer.put (LINE_SEP)
-	       resultBuffer.put ("welcome")
-	       resultBuffer.flip()*/
-	       /*val b = ByteBuffer.allocate(1024);
-	       b.put(byteBuffer.getBytes(), 0, byteBuffer.length())
-	       b.flip()*/
-	       //println("postion "+byteBuffer.position()+" limit "+byteBuffer.limit())
-	       byteBuffer.flip()
-	       //println("postion "+byteBuffer.position()+" limit "+byteBuffer.limit())
-	       val f:Future[Integer] = this.socket.write(byteBuffer)
-	       val count:Integer = f.get()
-	       println("count "+count)
-	       this.socket.close() //TODO keep-alive
+            })
+	       
 	    }
 	}
+    
+    private def asynWrite2(byteBuffer:ByteBuffer) {
+        byteBuffer.flip()
+       val f:Future[Integer] = this.socket.write(byteBuffer)
+       val count:Integer = f.get()
+       println("count "+count)
+       this.socket.close() //TODO keep-alive
+    }
     
 //  private val cbtemp:CharBuffer = CharBuffer.allocate (1024);
 //  private val dynHdr:ByteBuffer = ByteBuffer.allocate (1024);
