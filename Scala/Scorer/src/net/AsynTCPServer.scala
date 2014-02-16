@@ -10,25 +10,23 @@ import java.net.InetSocketAddress
 import java.util.concurrent.Executors
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
-import java.io.FileInputStream
-import java.nio.channels.FileChannel
 
-class AsynHTTPServer(tenThreadGroup:AsynchronousChannelGroup) {
+class AsynTCPServer(tenThreadGroup:AsynchronousChannelGroup) {
     
     private val server:AsynchronousServerSocketChannel = AsynchronousServerSocketChannel.open(tenThreadGroup)
-    private var hanlder:Function2[HTTPRequest, HTTPResponse, Unit] = null
+    private var hanlder:Function1[AsynSocket, Unit] = null
 
     def listen(port:Int) {
         server.bind(new InetSocketAddress("localhost",port), 100)
         asynAccept(this.hanlder)
     }
 
-    def createServer(hanlder:(HTTPRequest, HTTPResponse) => Unit) = {
+    def createServer(hanlder:(AsynSocket) => Unit) = {
         this.hanlder = hanlder
         this
     }
     
-    private def asynAccept(hanlder:(HTTPRequest, HTTPResponse) => Unit) {
+    private def asynAccept(hanlder:(AsynSocket) => Unit) {
         if (this.server.isOpen) {
             server.accept(null, new CompletionHandler[AsynchronousSocketChannel, Any]() {
 
@@ -37,8 +35,7 @@ class AsynHTTPServer(tenThreadGroup:AsynchronousChannelGroup) {
                     try {
                         // read a message from the client, timeout after 10 seconds
                         println("Accept connection from " + socket.getRemoteAddress())
-                        val connection = new Connection(socket)
-                        connection.start(hanlder)
+                        hanlder(new AsynSocket(socket))
                     } catch {
                         case e:Exception => e.printStackTrace()
                         //println("Client didn't respond in time")
@@ -60,17 +57,15 @@ class AsynHTTPServer(tenThreadGroup:AsynchronousChannelGroup) {
     }
 }
 //test
-object AsynHTTPServer {
+object AsynTCPServer {
     def main(args: Array[String]) {
-        val http = new AsynHTTPServer(AsynchronousChannelGroup.withFixedThreadPool(10, Executors.defaultThreadFactory()));
+        val http = new AsynTCPServer(AsynchronousChannelGroup.withFixedThreadPool(10, Executors.defaultThreadFactory()));
         println("server sart...")
-        http.createServer((req:HTTPRequest, res:HTTPResponse) => {
-            res.setHeader("Content-Type", "text/html")
-            res.write("<h1>welcome</h1>");
-            res.end()
-            //val fis:FileInputStream = new FileInputStream("/Users/miloxia/Desktop/hello.html")
-            //val channel:FileChannel = fis.getChannel()
-            //res.pip(channel)
+        http.createServer((socket:AsynSocket) => {
+            socket.read((cunk:ByteBuffer) => {
+                println(new String(cunk.array()))
+                socket.write("hello")
+            })
         }).listen(8888)
     }
 }
